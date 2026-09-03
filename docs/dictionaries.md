@@ -21,8 +21,14 @@ repositories and source RPMs. Fedora identifies the Russian dictionary as the
 Ispell/Hunspell word list by Alexander I. Lebedev under a modified BSD license.
 The English dictionary is generated from SCOWL and carries its upstream
 permissive/LGPL notices. The files stay system-owned and are not redistributed
-as part of GooseSwitcher. Their licenses and the MPL-2.0 `spellbook` parser are
-compatible with the GPL-3.0 license in this repository's `LICENSE` file.
+as part of GooseSwitcher. The `spellbook` parser is distributed under MPL-2.0
+and remains an independently licensed dependency.
+
+The repository currently has conflicting project-license declarations:
+`Cargo.toml` says MIT, while `LICENSE` contains GPL-3.0 text. This stage does not
+choose or change the project's license. The conflict must be resolved before
+packaging; consuming the separately installed Fedora dictionary files does not
+copy their contents into the GooseSwitcher package.
 
 Fedora's current Russian dictionary declares KOI8-R while the English one uses
 UTF-8. The loader supports both encodings and passes decoded Hunspell affix
