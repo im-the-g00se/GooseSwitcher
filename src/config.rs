@@ -2,6 +2,8 @@
 
 /// Enables automatic corrections.
 pub const CORRECTIONS_ENABLED: &str = "corrections_enabled";
+/// Minimum number of letters in an automatically corrected word.
+pub const MINIMUM_WORD_LENGTH: &str = "minimum_word_length";
 /// Shortcut for correcting the last word.
 pub const CORRECT_LAST_WORD_SHORTCUT: &str = "correct_last_word_shortcut";
 /// Shortcut for undoing the last correction.

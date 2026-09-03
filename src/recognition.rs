@@ -51,6 +51,8 @@ impl<'a> SystemDictionaries<'a> {
 /// Tunable recognition settings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RecognitionConfig {
+    /// Whether automatic corrections are enabled.
+    pub corrections_enabled: bool,
     /// Minimum number of letters in an automatically corrected token.
     pub minimum_word_length: usize,
 }
@@ -58,6 +60,7 @@ pub struct RecognitionConfig {
 impl Default for RecognitionConfig {
     fn default() -> Self {
         Self {
+            corrections_enabled: true,
             minimum_word_length: 3,
         }
     }
@@ -134,13 +137,20 @@ pub fn is_word_terminator(character: char) -> bool {
 ///
 /// User rules are matched exactly and take priority. Automatic replacement is
 /// returned only when the converted word is known and the source word is not.
-pub fn decide_correction(
+pub fn decide_correction<'rules, I>(
     source: &str,
     dictionaries: SystemDictionaries<'_>,
-    user_rules: &[UserRule],
+    user_rules: I,
     config: RecognitionConfig,
-) -> CorrectionDecision {
-    if let Some(rule) = user_rules.iter().find(|rule| rule.source == source) {
+) -> CorrectionDecision
+where
+    I: IntoIterator<Item = &'rules UserRule>,
+{
+    if !config.corrections_enabled {
+        return CorrectionDecision::Keep;
+    }
+
+    if let Some(rule) = user_rules.into_iter().find(|rule| rule.source == source) {
         return CorrectionDecision::ApplyUserRule {
             action: rule.action,
             replacement: rule.replacement.clone(),
@@ -345,6 +355,7 @@ mod tests {
             rules,
             RecognitionConfig {
                 minimum_word_length,
+                ..RecognitionConfig::default()
             },
         )
     }
