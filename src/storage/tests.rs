@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use rusqlite::{Connection, OptionalExtension};
 use tempfile::TempDir;
 
+use crate::rules::{NewUserRule, RuleAction};
+
 use super::*;
 
 fn database_path() -> (TempDir, PathBuf) {
@@ -83,4 +85,61 @@ fn reopening_database_preserves_setting() {
     assert_eq!(setting.key, "corrections_enabled");
     assert_eq!(setting.value, "true");
     assert!(setting.updated_at > 0);
+}
+
+#[test]
+fn every_rule_action_round_trips_through_sqlite() {
+    let (_directory, path) = database_path();
+    let mut store = SqliteStore::open(path).unwrap();
+    let inputs = [
+        NewUserRule::consider_correct("Rust").unwrap(),
+        NewUserRule::never_correct("cargo").unwrap(),
+        NewUserRule::always_replace("ghbdtn", "привет").unwrap(),
+    ];
+
+    for input in inputs {
+        let source = input.source().to_owned();
+        let saved = store.upsert_rule(input).unwrap();
+        assert_eq!(store.get_rule(&source).unwrap(), Some(saved));
+    }
+}
+
+#[test]
+fn upsert_changes_action_without_replacing_identity() {
+    let (_directory, path) = database_path();
+    let mut store = SqliteStore::open(path).unwrap();
+    let original = store
+        .upsert_rule(NewUserRule::never_correct("руддщ").unwrap())
+        .unwrap();
+    let updated = store
+        .upsert_rule(NewUserRule::always_replace("руддщ", "hello").unwrap())
+        .unwrap();
+
+    assert_eq!(updated.id, original.id);
+    assert_eq!(updated.created_at, original.created_at);
+    assert_eq!(updated.action, RuleAction::AlwaysReplace);
+    assert_eq!(updated.replacement.as_deref(), Some("hello"));
+}
+
+#[test]
+fn rules_are_listed_by_source_and_delete_reports_presence() {
+    let (_directory, path) = database_path();
+    let mut store = SqliteStore::open(path).unwrap();
+    store
+        .upsert_rule(NewUserRule::consider_correct("zeta").unwrap())
+        .unwrap();
+    store
+        .upsert_rule(NewUserRule::never_correct("alpha").unwrap())
+        .unwrap();
+
+    let sources: Vec<_> = store
+        .list_rules()
+        .unwrap()
+        .into_iter()
+        .map(|rule| rule.source)
+        .collect();
+    assert_eq!(sources, ["alpha", "zeta"]);
+    assert!(store.delete_rule("alpha").unwrap());
+    assert!(!store.delete_rule("alpha").unwrap());
+    assert_eq!(store.get_rule("alpha").unwrap(), None);
 }

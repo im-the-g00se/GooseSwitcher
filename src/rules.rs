@@ -13,6 +13,25 @@ pub enum RuleAction {
     AlwaysReplace,
 }
 
+impl RuleAction {
+    pub(crate) fn as_db_value(self) -> &'static str {
+        match self {
+            Self::ConsiderCorrect => "consider_correct",
+            Self::NeverCorrect => "never_correct",
+            Self::AlwaysReplace => "always_replace",
+        }
+    }
+
+    pub(crate) fn from_db_value(value: &str) -> Result<Self, String> {
+        match value {
+            "consider_correct" => Ok(Self::ConsiderCorrect),
+            "never_correct" => Ok(Self::NeverCorrect),
+            "always_replace" => Ok(Self::AlwaysReplace),
+            other => Err(other.to_owned()),
+        }
+    }
+}
+
 /// A validated rule ready to be persisted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewUserRule {
