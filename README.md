@@ -3,9 +3,11 @@
 GooseSwitcher is a planned IBus engine for Fedora Linux that corrects words
 typed with the wrong Russian or English keyboard layout.
 
-The current project stage provides the Rust module boundaries and an SQLite
-store for settings and user dictionary rules. It does not yet connect to IBus,
-recognize words, or provide a GTK settings interface.
+The current project stage provides the Rust module boundaries, an SQLite store
+for settings and user dictionary rules, and a pure RU/EN layout recognition
+engine. The engine converts physical keyboard layouts, applies explicit user
+rules, and makes conservative dictionary-backed correction decisions. It does
+not yet connect to IBus or provide a GTK settings interface.
 
 ## Development on Fedora
 
