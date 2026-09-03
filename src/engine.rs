@@ -6,14 +6,14 @@ use crate::{
     config::{CORRECTIONS_ENABLED, MINIMUM_WORD_LENGTH},
     dictionaries::{DictionaryLoadError, SystemDictionaryIndex, SystemDictionaryPaths},
     recognition::{decide_correction, CorrectionDecision, RecognitionConfig},
-    rules::UserRule,
+    rules::{language_of_word, normalize_word, Language, UserRule},
     storage::{SqliteStore, StorageError},
 };
 
 /// Dictionaries, rules and settings snapshotted once during engine startup.
 pub struct RecognitionRuntime {
     dictionaries: SystemDictionaryIndex,
-    user_rules: HashMap<String, UserRule>,
+    user_rules: HashMap<(Language, String), UserRule>,
     config: RecognitionConfig,
 }
 
@@ -26,9 +26,9 @@ impl RecognitionRuntime {
         let dictionaries = SystemDictionaryIndex::load(dictionary_paths)?;
         let config = load_config(store)?;
         let user_rules = store
-            .list_rules()?
+            .all_rules()?
             .into_iter()
-            .map(|rule| (rule.source.clone(), rule))
+            .map(|rule| ((rule.language, rule.normalized_word.clone()), rule))
             .collect();
         Ok(Self {
             dictionaries,
@@ -43,7 +43,8 @@ impl RecognitionRuntime {
             return CorrectionDecision::Keep;
         }
 
-        let matching_rule = self.user_rules.get(source);
+        let matching_rule = language_of_word(source)
+            .and_then(|language| self.user_rules.get(&(language, normalize_word(source))));
         decide_correction(
             source,
             self.dictionaries.dictionaries(),

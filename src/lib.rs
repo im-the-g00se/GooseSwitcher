@@ -8,3 +8,4 @@ pub mod recognition;
 pub mod rules;
 pub mod settings_ui;
 pub mod storage;
+pub mod user_dictionary;

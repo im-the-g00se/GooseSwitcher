@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeSet, HashSet};
 
-use crate::rules::{RuleAction, UserRule};
+use crate::rules::{language_of_word, normalize_word, RuleAction, UserRule};
 
 const ENGLISH_UNSHIFTED: &str = "`qwertyuiop[]asdfghjkl;'zxcvbnm,./";
 const RUSSIAN_UNSHIFTED: &str = "ёйцукенгшщзхъфывапролджэячсмитьбю.";
@@ -150,7 +150,11 @@ where
         return CorrectionDecision::Keep;
     }
 
-    if let Some(rule) = user_rules.into_iter().find(|rule| rule.source == source) {
+    let source_language = language_of_word(source);
+    let normalized_source = normalize_word(source);
+    if let Some(rule) = user_rules.into_iter().find(|rule| {
+        Some(rule.language) == source_language && rule.normalized_word == normalized_source
+    }) {
         return CorrectionDecision::ApplyUserRule {
             action: rule.action,
             replacement: rule.replacement.clone(),
@@ -319,7 +323,7 @@ fn looks_like_camel_case_identifier(source: &str) -> bool {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::rules::{RuleAction, UserRule};
+    use crate::rules::{normalize_word, Language, RuleAction, UserRule};
 
     use super::*;
 
@@ -330,7 +334,13 @@ mod tests {
     fn rule(source: &str, action: RuleAction, replacement: Option<&str>) -> UserRule {
         UserRule {
             id: 1,
-            source: source.to_owned(),
+            word: source.to_owned(),
+            normalized_word: normalize_word(source),
+            language: if source.chars().any(super::is_russian_letter) {
+                Language::Russian
+            } else {
+                Language::English
+            },
             action,
             replacement: replacement.map(str::to_owned),
             created_at: 0,
@@ -515,7 +525,7 @@ mod tests {
         let rules = [rule("ghbdtn", RuleAction::ConsiderCorrect, None)];
 
         assert_eq!(
-            decide_with("ghbdtn", &["привет"], &[], &rules, 3),
+            decide_with("GHBDTN", &["привет"], &[], &rules, 3),
             CorrectionDecision::ApplyUserRule {
                 action: RuleAction::ConsiderCorrect,
                 replacement: None,
@@ -539,13 +549,13 @@ mod tests {
     #[test]
     fn user_replacement_has_priority_over_exclusions_and_dictionaries() {
         let rules = [rule(
-            "ghbdtn@example.com",
+            "ghbdtn",
             RuleAction::AlwaysReplace,
             Some("explicit replacement"),
         )];
 
         assert_eq!(
-            decide_with("ghbdtn@example.com", &["привет"], &[], &rules, 100,),
+            decide_with("ghbdtn", &["привет"], &[], &rules, 100,),
             CorrectionDecision::ApplyUserRule {
                 action: RuleAction::AlwaysReplace,
                 replacement: Some("explicit replacement".to_owned()),

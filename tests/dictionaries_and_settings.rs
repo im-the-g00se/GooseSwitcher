@@ -5,7 +5,7 @@ use gooseswitcher::{
     dictionaries::{DictionaryLoadError, SystemDictionaryIndex, SystemDictionaryPaths},
     engine::RecognitionRuntime,
     recognition::{CorrectionDecision, RecognitionConfig},
-    rules::NewUserRule,
+    rules::{Language, NewUserRule},
     storage::SqliteStore,
 };
 use tempfile::TempDir;
@@ -101,17 +101,19 @@ fn runtime_uses_settings_and_user_rules_snapshotted_at_startup() {
     let (_database_directory, mut store) = store();
     store.set_setting(CORRECTIONS_ENABLED, "true").unwrap();
     store.set_setting(MINIMUM_WORD_LENGTH, "4").unwrap();
-    store
-        .upsert_rule(NewUserRule::always_replace("ghbdtn", "добрый день").unwrap())
+    let saved = store
+        .create_rule(
+            NewUserRule::always_replace("ghbdtn", Language::English, "добрый день").unwrap(),
+        )
         .unwrap();
 
     let runtime = RecognitionRuntime::load(&store, &paths).unwrap();
-    store.delete_rule("ghbdtn").unwrap();
+    store.delete_rule(saved.id).unwrap();
     store.set_setting(CORRECTIONS_ENABLED, "false").unwrap();
     drop(store);
 
     assert_eq!(
-        runtime.decide("ghbdtn"),
+        runtime.decide("GHBDTN"),
         CorrectionDecision::ApplyUserRule {
             action: gooseswitcher::rules::RuleAction::AlwaysReplace,
             replacement: Some("добрый день".to_owned()),
@@ -126,7 +128,9 @@ fn disabled_corrections_keep_words_even_when_a_rule_or_dictionary_matches() {
     let (_database_directory, mut store) = store();
     store.set_setting(CORRECTIONS_ENABLED, "false").unwrap();
     store
-        .upsert_rule(NewUserRule::always_replace("ghbdtn", "добрый день").unwrap())
+        .create_rule(
+            NewUserRule::always_replace("ghbdtn", Language::English, "добрый день").unwrap(),
+        )
         .unwrap();
     let runtime = RecognitionRuntime::load(&store, &paths).unwrap();
 
